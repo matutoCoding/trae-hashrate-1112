@@ -249,3 +249,240 @@
     opacity: 0.85;
   }
 }
+
+.assignBtn {
+  @include button-reset;
+  margin-top: $spacing-md;
+  padding: $spacing-sm $spacing-xl;
+  background: $color-text-white;
+  color: $color-queuing;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+.itemActions {
+  padding: 0 $spacing-md $spacing-md;
+  background: $color-bg-card;
+  margin: 0 $page-padding $spacing-md;
+  border-radius: 0 0 $radius-lg $radius-lg;
+  margin-top: -$spacing-sm;
+}
+
+.itemAssignBtn {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-sm;
+  background: $gradient-queuing;
+  color: $color-text-white;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.assignModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.assignContent {
+  width: 680rpx;
+  max-height: 85vh;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  margin: $page-padding;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.assignHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-lg;
+  padding-bottom: $spacing-md;
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.assignClose {
+  font-size: $font-size-lg;
+  color: $color-text-tertiary;
+  padding: $spacing-xs;
+}
+
+.assignVehicle {
+  padding: $spacing-md $spacing-lg;
+  background: linear-gradient(135deg, rgba(250, 140, 22, 0.1) 0%, rgba(250, 140, 22, 0.05) 100%);
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.assignPlate {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-queuing;
+  margin-bottom: $spacing-xs;
+}
+
+.assignInfo {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+}
+
+.assignQueueNo {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.assignScroll {
+  flex: 1;
+  padding: $spacing-md $spacing-lg;
+  overflow-y: auto;
+}
+
+.assignSection {
+  margin-bottom: $spacing-lg;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.assignLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-sm;
+  display: block;
+}
+
+.assignPicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80rpx;
+  padding: 0 $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+}
+
+.assignRecommendList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.assignRecommendItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm $spacing-md;
+  background: linear-gradient(135deg, rgba(82, 196, 26, 0.1) 0%, rgba(82, 196, 26, 0.05) 100%);
+  border: 1rpx solid rgba(82, 196, 26, 0.3);
+  border-radius: $radius-sm;
+
+  &:active {
+    background: linear-gradient(135deg, rgba(82, 196, 26, 0.2) 0%, rgba(82, 196, 26, 0.1) 100%);
+  }
+}
+
+.assignRecommendTime {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-success;
+}
+
+.assignRecommendMeta {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.assignSlotGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-sm;
+}
+
+.assignSlotItem {
+  padding: $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+  text-align: center;
+  font-size: $font-size-xs;
+  border: 2rpx solid transparent;
+  transition: all $transition-base;
+
+  &.available {
+    color: $color-text-primary;
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &.selected {
+    border-color: $color-queuing;
+    background: rgba(250, 140, 22, 0.1);
+    color: $color-queuing;
+    font-weight: $font-weight-semibold;
+  }
+
+  &.occupied {
+    background: rgba(255, 77, 79, 0.1);
+    color: $color-text-tertiary;
+    text-decoration: line-through;
+  }
+
+  &.merged {
+    background: $gradient-queuing;
+    color: $color-text-white;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.assignSummary {
+  padding: $spacing-md;
+  background: linear-gradient(135deg, rgba(250, 140, 22, 0.1) 0%, rgba(250, 140, 22, 0.05) 100%);
+  border-radius: $radius-md;
+}
+
+.assignSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-xs 0;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+.assignSummaryValue {
+  color: $color-text-primary;
+  font-weight: $font-weight-semibold;
+}

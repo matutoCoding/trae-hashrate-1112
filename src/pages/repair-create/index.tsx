@@ -1,12 +1,19 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, Button, Input, ScrollView, Picker, Textarea } from '@tarojs/components';
 import Taro, { useDidShow, useRouter } from '@tarojs/taro';
 import classnames from 'classnames';
 import styles from './index.module.scss';
 import useAppStore from '@/store/useAppStore';
 import StatusTag from '@/components/StatusTag';
-import { isAdjacentSlot, mergeTimeSlots } from '@/utils/schedule';
-import type { TimeSlot, Station } from '@/types';
+import {
+  isAdjacentSlot,
+  mergeTimeSlots,
+  findContiguousFreeBlocks,
+  getSlotConflicts,
+  generateTimeSlots,
+  ContiguousFreeBlock
+} from '@/utils/schedule';
+import type { TimeSlot, Station, RepairOrder } from '@/types';
 
 const serviceTypes = [
   { key: '常规保养', icon: '🔧' },
@@ -34,7 +41,7 @@ const RepairCreatePage: React.FC = () => {
   const preSelectedStationId = router.params.stationId;
   const preSelectedDate = router.params.date;
 
-  const { stations, createRepairOrder, getStationSchedule, config, selectedDate, setSelectedDate } = useAppStore();
+  const { stations, createRepairOrder, getStationSchedule, config, selectedDate, setSelectedDate, repairOrders } = useAppStore();
 
   const [form, setForm] = useState({
     plateNumber: '',
@@ -61,6 +68,51 @@ const RepairCreatePage: React.FC = () => {
     if (!form.stationId) return null;
     return getStationSchedule(form.stationId, currentDate);
   }, [form.stationId, currentDate, getStationSchedule]);
+
+  const stationOrders = useMemo((): RepairOrder[] => {
+    if (!form.stationId) return [];
+    return repairOrders.filter(
+      (o) => o.stationId === form.stationId
+        && o.status !== 'cancelled'
+        && o.scheduleDate === currentDate
+    );
+  }, [form.stationId, currentDate, repairOrders]);
+
+  const allTimeSlots = useMemo(() => {
+    return generateTimeSlots(config, currentDate);
+  }, [config, currentDate]);
+
+  const recommendedBlocks = useMemo((): ContiguousFreeBlock[] => {
+    if (!form.stationId) return [];
+    const blocks = findContiguousFreeBlocks(allTimeSlots, stationOrders, currentDate, 1);
+    return blocks.slice(0, 5);
+  }, [form.stationId, allTimeSlots, stationOrders, currentDate]);
+
+  const slotConflicts = useMemo(() => {
+    if (selectedSlots.length === 0) return { conflictingSlots: [] as string[], selectedBlocks: [] as ContiguousFreeBlock[] };
+    return getSlotConflicts(selectedSlots, allTimeSlots, stationOrders, currentDate, config.timeSlotDuration);
+  }, [selectedSlots, allTimeSlots, stationOrders, currentDate, config.timeSlotDuration]);
+
+  const hasConflict = slotConflicts.conflictingSlots.length > 0;
+
+  useEffect(() => {
+    if (hasConflict) {
+      Taro.showToast({
+        title: `时段${slotConflicts.conflictingSlots.join('、')}已被占用`,
+        icon: 'none',
+        duration: 2000
+      });
+    }
+  }, [hasConflict, slotConflicts.conflictingSlots]);
+
+  const handleRecommendSelect = useCallback((block: ContiguousFreeBlock) => {
+    const startTimes = block.slots.map((s) => s.startTime);
+    setSelectedSlots(startTimes);
+    Taro.showToast({
+      title: `已选择${block.slotCount}个连续时段`,
+      icon: 'success'
+    });
+  }, []);
 
   const isMergedSelection = useMemo(() => {
     if (selectedSlots.length < 2) return false;
@@ -141,6 +193,13 @@ const RepairCreatePage: React.FC = () => {
     }
     if (selectedSlots.length === 0) {
       Taro.showToast({ title: '请选择预约时段', icon: 'none' });
+      return;
+    }
+    if (hasConflict) {
+      Taro.showToast({
+        title: `时段${slotConflicts.conflictingSlots.join('、')}已被占用，请重新选择`,
+        icon: 'none'
+      });
       return;
     }
     if (!isMergedSelection && selectedSlots.length > 1) {
@@ -354,23 +413,56 @@ const RepairCreatePage: React.FC = () => {
 
           {form.stationId && scheduleData ? (
             <>
+              {recommendedBlocks.length > 0 && (
+                <View className={styles.formItem}>
+                  <Text className={styles.formLabel}>
+                    推荐连续空档（点击快速选择）
+                  </Text>
+                  <View className={styles.recommendList}>
+                    {recommendedBlocks.map((block, idx) => (
+                      <View
+                        key={`rec-${idx}`}
+                        className={styles.recommendItem}
+                        onClick={() => handleRecommendSelect(block)}
+                      >
+                        <Text className={styles.recommendTime}>
+                          {block.startTime} - {block.endTime}
+                        </Text>
+                        <Text className={styles.recommendMeta}>
+                          {block.slotCount}个时段 · {block.duration}分钟
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               <View className={styles.formItem}>
                 <Text className={styles.formLabel}>
                   选择时段（可多选，相邻时段自动合并）
                 </Text>
+                {hasConflict && (
+                  <View className={styles.conflictAlert}>
+                    ⚠️ 时段 {slotConflicts.conflictingSlots.join('、')} 已被占用，请重新选择
+                  </View>
+                )}
                 <View className={styles.timeSlotGrid}>
-                  {scheduleData.timeSlots.map((item) => (
-                    <View
-                      key={item.slot.id}
-                      className={classnames(
-                        styles.timeSlotItem,
-                        getSlotStatusClass(item.slot.startTime, item.isAvailable)
-                      )}
-                      onClick={() => handleSlotClick(item.slot.startTime, item.isAvailable)}
-                    >
-                      {item.slot.startTime}
-                    </View>
-                  ))}
+                  {scheduleData.timeSlots.map((item) => {
+                    const isConflict = slotConflicts.conflictingSlots.includes(item.slot.startTime);
+                    return (
+                      <View
+                        key={item.slot.id}
+                        className={classnames(
+                          styles.timeSlotItem,
+                          getSlotStatusClass(item.slot.startTime, item.isAvailable),
+                          { [styles.conflict]: isConflict }
+                        )}
+                        onClick={() => handleSlotClick(item.slot.startTime, item.isAvailable)}
+                      >
+                        {item.slot.startTime}
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -380,11 +472,27 @@ const RepairCreatePage: React.FC = () => {
                     <Text className={styles.summaryLabel}>已选时段</Text>
                     <Text className={styles.summaryValue}>{mergedSlotDisplay}</Text>
                   </View>
+                  {slotConflicts.selectedBlocks.length > 1 && (
+                    <View className={styles.blockList}>
+                      <Text className={styles.blockLabel}>占用分段：</Text>
+                      {slotConflicts.selectedBlocks.map((block, idx) => (
+                        <View key={idx} className={styles.blockItem}>
+                          <Text className={styles.blockTime}>
+                            第{idx + 1}段：{block.startTime} - {block.endTime}
+                          </Text>
+                          <Text className={styles.blockMeta}>
+                            ({block.slotCount}个时段 · {block.duration}分钟)
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                   <View className={styles.summaryRow}>
                     <Text className={styles.summaryLabel}>时段数量</Text>
                     <Text className={styles.summaryValue}>
                       {selectedSlots.length} 个
                       {isMergedSelection && selectedSlots.length > 1 && ' · 已合并'}
+                      {!isMergedSelection && selectedSlots.length > 1 && ` · ${slotConflicts.selectedBlocks.length}段`}
                     </Text>
                   </View>
                   <View className={styles.summaryRow}>

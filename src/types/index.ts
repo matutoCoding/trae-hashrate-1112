@@ -124,6 +124,7 @@ export interface AppActions {
   markAsSkipped: (queueItemId: string) => void;
   cancelQueueItem: (queueItemId: string) => void;
   completeService: (queueItemId: string) => void;
+  assignStationAndStart: (queueItemId: string, stationId: string, stationName: string, date: string, timeSlots: TimeSlot[], mergedSlot?: TimeSlot) => void;
   addPart: (repairOrderId: string, part: Omit<PartItem, 'id'>) => void;
   setSelectedDate: (date: string) => void;
   updateConfig: (config: Partial<AppConfig>) => void;

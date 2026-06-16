@@ -189,7 +189,7 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
             timeSlots: keptSlots.length > 0 ? keptSlots : [finalBefore],
             mergedSlot: undefined,
             status: 'completed' as const,
-            actualEndTime: dayjs().toISOString()
+            actualEndTime: dayjs(`${date} ${splitTime}`).toISOString()
           };
         }
         return o;
@@ -354,6 +354,32 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     });
 
     console.log('[Queue] 完成服务:', queueItem.queueNumber);
+  },
+
+  assignStationAndStart: (queueItemId, stationId, stationName, date, timeSlots, mergedSlot) => {
+    const state = get();
+    const queueItem = state.queue.find((q) => q.id === queueItemId);
+    if (!queueItem) return;
+
+    set((prev) => {
+      const newQueue = prev.queue.map((item) =>
+        item.id === queueItemId ? { ...item, status: 'serving' } : item
+      );
+      saveToStorage({ queue: newQueue });
+      return { queue: newQueue };
+    });
+
+    get().updateRepairOrder(queueItem.repairOrderId, {
+      stationId,
+      stationName,
+      scheduleDate: date,
+      timeSlots,
+      mergedSlot,
+      status: 'in_progress',
+      actualStartTime: dayjs().toISOString()
+    });
+
+    console.log('[Queue] 安排工位并开始维修:', queueItem.queueNumber, '工位:', stationName, '时段:', timeSlots.map((s) => s.startTime).join(','));
   },
 
   addPart: (repairOrderId, part) => {

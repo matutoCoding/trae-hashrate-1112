@@ -202,3 +202,132 @@ export const calculateDuration = (startTime: string, endTime: string, date: stri
   const end = dayjs(`${date} ${endTime}`);
   return end.diff(start, 'minute');
 };
+
+export interface ContiguousFreeBlock {
+  slots: TimeSlot[];
+  startTime: string;
+  endTime: string;
+  duration: number;
+  slotCount: number;
+}
+
+export const findContiguousFreeBlocks = (
+  allSlots: TimeSlot[],
+  occupiedOrders: RepairOrder[],
+  date: string,
+  minSlots: number = 1
+): ContiguousFreeBlock[] => {
+  const availableSlots = getAvailableTimeSlots(allSlots, occupiedOrders, date);
+  if (availableSlots.length === 0) return [];
+
+  const sortedAvailable = [...availableSlots].sort((a, b) => {
+    return dayjs(`${date} ${a.startTime}`).valueOf() - dayjs(`${date} ${b.startTime}`).valueOf();
+  });
+
+  const blocks: ContiguousFreeBlock[] = [];
+  let currentBlock: TimeSlot[] = [sortedAvailable[0]];
+
+  for (let i = 1; i < sortedAvailable.length; i++) {
+    const prevSlot = currentBlock[currentBlock.length - 1];
+    const currSlot = sortedAvailable[i];
+    if (isAdjacentSlot(prevSlot, currSlot, date)) {
+      currentBlock.push(currSlot);
+    } else {
+      if (currentBlock.length >= minSlots) {
+        const firstSlot = currentBlock[0];
+        const lastSlot = currentBlock[currentBlock.length - 1];
+        blocks.push({
+          slots: currentBlock,
+          startTime: firstSlot.startTime,
+          endTime: lastSlot.endTime,
+          duration: calculateDuration(firstSlot.startTime, lastSlot.endTime, date),
+          slotCount: currentBlock.length
+        });
+      }
+      currentBlock = [currSlot];
+    }
+  }
+
+  if (currentBlock.length >= minSlots) {
+    const firstSlot = currentBlock[0];
+    const lastSlot = currentBlock[currentBlock.length - 1];
+    blocks.push({
+      slots: currentBlock,
+      startTime: firstSlot.startTime,
+      endTime: lastSlot.endTime,
+      duration: calculateDuration(firstSlot.startTime, lastSlot.endTime, date),
+      slotCount: currentBlock.length
+    });
+  }
+
+  return blocks.sort((a, b) => b.slotCount - a.slotCount);
+};
+
+export const getSlotConflicts = (
+  selectedSlotStartTimes: string[],
+  allSlots: TimeSlot[],
+  occupiedOrders: RepairOrder[],
+  date: string,
+  slotDuration: number
+): { conflictingSlots: string[]; selectedBlocks: ContiguousFreeBlock[] } => {
+  const availableSlotSet = new Set(
+    getAvailableTimeSlots(allSlots, occupiedOrders, date).map((s) => s.startTime)
+  );
+
+  const conflictingSlots = selectedSlotStartTimes.filter((t) => !availableSlotSet.has(t));
+
+  const selectedTimeSlots: TimeSlot[] = selectedSlotStartTimes
+    .filter((t) => availableSlotSet.has(t))
+    .map((startTime) => ({
+      id: `sel-${startTime}`,
+      startTime,
+      endTime: (() => {
+        const [h, m] = startTime.split(':').map(Number);
+        const total = h * 60 + m + slotDuration;
+        const newH = Math.floor(total / 60) % 24;
+        const newM = total % 60;
+        return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+      })()
+    }));
+
+  const sortedSelected = [...selectedTimeSlots].sort((a, b) => {
+    return dayjs(`${date} ${a.startTime}`).valueOf() - dayjs(`${date} ${b.startTime}`).valueOf();
+  });
+
+  const selectedBlocks: ContiguousFreeBlock[] = [];
+  if (sortedSelected.length === 0) {
+    return { conflictingSlots, selectedBlocks };
+  }
+
+  let currentBlock: TimeSlot[] = [sortedSelected[0]];
+  for (let i = 1; i < sortedSelected.length; i++) {
+    const prevSlot = currentBlock[currentBlock.length - 1];
+    const currSlot = sortedSelected[i];
+    if (isAdjacentSlot(prevSlot, currSlot, date)) {
+      currentBlock.push(currSlot);
+    } else {
+      const firstSlot = currentBlock[0];
+      const lastSlot = currentBlock[currentBlock.length - 1];
+      selectedBlocks.push({
+        slots: currentBlock,
+        startTime: firstSlot.startTime,
+        endTime: lastSlot.endTime,
+        duration: calculateDuration(firstSlot.startTime, lastSlot.endTime, date),
+        slotCount: currentBlock.length
+      });
+      currentBlock = [currSlot];
+    }
+  }
+
+  const firstSlot = currentBlock[0];
+  const lastSlot = currentBlock[currentBlock.length - 1];
+  selectedBlocks.push({
+    slots: currentBlock,
+    startTime: firstSlot.startTime,
+    endTime: lastSlot.endTime,
+    duration: calculateDuration(firstSlot.startTime, lastSlot.endTime, date),
+    slotCount: currentBlock.length
+  });
+
+  return { conflictingSlots, selectedBlocks };
+};
