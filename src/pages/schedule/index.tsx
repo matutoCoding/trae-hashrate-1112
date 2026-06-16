@@ -7,7 +7,7 @@ import styles from './index.module.scss';
 import useAppStore from '@/store/useAppStore';
 import StationCard from '@/components/StationCard';
 import TimeSlotComponent from '@/components/TimeSlot';
-import { findContiguousFreeBlocks, generateTimeSlots, mergeTimeSlots, isAdjacentSlot, ContiguousFreeBlock, getSlotConflicts } from '@/utils/schedule';
+import { findContiguousFreeBlocks, generateTimeSlots, mergeTimeSlots, isAdjacentSlot, ContiguousFreeBlock, getSlotConflicts, calculateShiftedOrders, ShiftedOrder } from '@/utils/schedule';
 import type { TimeSlot, RepairOrder } from '@/types';
 
 type ViewMode = 'day' | 'week';
@@ -114,9 +114,23 @@ const SchedulePage: React.FC = () => {
   const filteredWeekStations = useMemo(() => {
     return stations.filter((station) => {
       if (stationTypeFilter !== 'all' && station.type !== stationTypeFilter) return false;
+      if (availabilityFilter !== 'all') {
+        let totalOccupied = 0;
+        let totalSlots = 0;
+        weekDates.forEach((date) => {
+          const schedule = getStationSchedule(station.id, date);
+          schedule.timeSlots.forEach((slot) => {
+            totalSlots++;
+            if (!slot.isAvailable) totalOccupied++;
+          });
+        });
+        const avgOccupancy = totalSlots > 0 ? totalOccupied / totalSlots : 0;
+        if (availabilityFilter === 'busy' && avgOccupancy < 0.5) return false;
+        if (availabilityFilter === 'free' && avgOccupancy >= 0.5) return false;
+      }
       return true;
     });
-  }, [stations, stationTypeFilter]);
+  }, [stations, stationTypeFilter, availabilityFilter, weekDates, getStationSchedule]);
 
   const dailyStats = useMemo(() => {
     let totalOccupied = 0;
@@ -450,30 +464,20 @@ const SchedulePage: React.FC = () => {
     return true;
   }, [urgentSelectedSlots, config.timeSlotDuration, urgentDate]);
 
-  const urgentAffectedOrders = useMemo((): RepairOrder[] => {
-    if (urgentSelectedSlots.length === 0 || !urgentStationId) return [];
-    const selectedTimeSlots: TimeSlot[] = urgentSelectedSlots.map((startTime) => ({
-      id: `sel-${startTime}`, startTime,
-      endTime: (() => {
-        const [h, m] = startTime.split(':').map(Number);
-        const total = h * 60 + m + config.timeSlotDuration;
-        return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-      })()
-    }));
-
-    return urgentStationOrders.filter((order) => {
-      return selectedTimeSlots.some((selSlot) => {
-        const orderSlots = order.mergedSlot ? [order.mergedSlot] : order.timeSlots;
-        return orderSlots.some((orderSlot) => {
-          const selStart = dayjs(`${urgentDate} ${selSlot.startTime}`);
-          const selEnd = dayjs(`${urgentDate} ${selSlot.endTime}`);
-          const ordStart = dayjs(`${urgentDate} ${orderSlot.startTime}`);
-          const ordEnd = dayjs(`${urgentDate} ${orderSlot.endTime}`);
-          return selStart.isBefore(ordEnd) && selEnd.isAfter(ordStart);
-        });
-      });
-    });
-  }, [urgentSelectedSlots, urgentStationId, urgentStationOrders, urgentDate]);
+  const urgentShiftResult = useMemo(() => {
+    if (urgentSelectedSlots.length === 0 || !urgentStationId || !isUrgentMerged) {
+      return { canInsert: false, reason: '', shiftedOrders: [] as ShiftedOrder[], urgentEndTime: '', urgentSlots: [] as TimeSlot[] };
+    }
+    const startTime = urgentSelectedSlots[0];
+    return calculateShiftedOrders(
+      startTime,
+      urgentSelectedSlots.length,
+      urgentStationOrders,
+      urgentAllSlots,
+      urgentDate,
+      config.timeSlotDuration
+    );
+  }, [urgentSelectedSlots, urgentStationId, urgentStationOrders, urgentAllSlots, urgentDate, config.timeSlotDuration, isUrgentMerged]);
 
   const handleUrgentSlotClick = useCallback((startTime: string, isAvailable: boolean) => {
     if (!isAvailable) return;
@@ -503,28 +507,24 @@ const SchedulePage: React.FC = () => {
       Taro.showToast({ title: '请选择时段', icon: 'none' });
       return;
     }
+    if (!isUrgentMerged) {
+      Taro.showToast({ title: '急修单请选择连续时段', icon: 'none' });
+      return;
+    }
+    if (!urgentShiftResult.canInsert) {
+      Taro.showToast({ title: urgentShiftResult.reason || '无法插入', icon: 'none' });
+      return;
+    }
 
     const station = stations.find((s) => s.id === urgentStationId);
     if (!station) return;
 
-    const timeSlots: TimeSlot[] = urgentSelectedSlots.map((startTime) => ({
-      id: `slot-${Date.now()}-${startTime}`,
-      startTime,
-      endTime: (() => {
-        const [h, m] = startTime.split(':').map(Number);
-        const total = h * 60 + m + config.timeSlotDuration;
-        return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-      })()
-    }));
-
-    let mergedSlot: TimeSlot | undefined;
-    if (isUrgentMerged && timeSlots.length > 1) {
-      mergedSlot = mergeTimeSlots(timeSlots, urgentDate);
-    }
-
-    const orderId = insertUrgentOrder({
+    const result = insertUrgentOrder({
       stationId: urgentStationId,
       stationName: station.name,
+      date: urgentDate,
+      startTime: urgentSelectedSlots[0],
+      durationSlots: urgentSelectedSlots.length,
       vehicle: {
         plateNumber: urgentForm.plateNumber.trim(),
         brand: urgentForm.brand.trim(),
@@ -533,24 +533,18 @@ const SchedulePage: React.FC = () => {
         ownerName: urgentForm.ownerName.trim(),
         ownerPhone: urgentForm.ownerPhone.trim()
       },
-      status: 'in_progress',
       serviceType: urgentForm.serviceType,
       description: urgentForm.description.trim(),
-      timeSlots,
-      mergedSlot,
-      estimatedDuration: urgentSelectedSlots.length * config.timeSlotDuration,
-      parts: [],
-      createdBy: urgentForm.createdBy,
-      scheduleDate: urgentDate
+      createdBy: urgentForm.createdBy
     });
 
-    useAppStore.getState().updateRepairOrder(orderId, {
-      actualStartTime: dayjs().toISOString()
-    });
-
-    setShowUrgentModal(false);
-    Taro.showToast({ title: '急修单已插入', icon: 'success' });
-  }, [urgentForm, urgentStationId, urgentSelectedSlots, urgentDate, stations, config.timeSlotDuration, isUrgentMerged, insertUrgentOrder]);
+    if (result.success) {
+      setShowUrgentModal(false);
+      Taro.showToast({ title: `急修单已插入，${urgentShiftResult.shiftedOrders.length}个工单顺延`, icon: 'success' });
+    } else {
+      Taro.showToast({ title: result.reason || '插入失败', icon: 'none' });
+    }
+  }, [urgentForm, urgentStationId, urgentSelectedSlots, urgentDate, urgentShiftResult, stations, isUrgentMerged, insertUrgentOrder]);
 
   useDidShow(() => {
     console.log('[SchedulePage] 页面显示');
@@ -1071,17 +1065,25 @@ const SchedulePage: React.FC = () => {
                       ))}
                     </View>
                   </View>
-                  {urgentAffectedOrders.length > 0 && (
+                  {urgentShiftResult.shiftedOrders.length > 0 && (
                     <View className={styles.impactAlert}>
-                      <Text className={styles.impactTitle}>⚠️ 将影响以下预约：</Text>
-                      {urgentAffectedOrders.map((order) => (
-                        <View key={order.id} className={styles.impactItem}>
-                          <Text className={styles.impactPlate}>{order.vehicle.plateNumber}</Text>
-                          <Text className={styles.impactTime}>
-                            {order.timeSlots[0]?.startTime} - {order.timeSlots[order.timeSlots.length - 1]?.endTime}
-                          </Text>
+                      <Text className={styles.impactTitle}>⚠️ 将顺延以下预约：</Text>
+                      {urgentShiftResult.shiftedOrders.map((shifted) => (
+                        <View key={shifted.order.id} className={styles.shiftItem}>
+                          <Text className={styles.shiftPlate}>{shifted.order.vehicle.plateNumber}</Text>
+                          <View className={styles.shiftTimeRow}>
+                            <Text className={styles.shiftOriginal}>{shifted.originalStartTime}</Text>
+                            <Text className={styles.shiftArrow}>→</Text>
+                            <Text className={styles.shiftNew}>{shifted.newStartTime}</Text>
+                            <Text className={styles.shiftMinutes}>（延后 {shifted.shiftMinutes} 分钟）</Text>
+                          </View>
                         </View>
                       ))}
+                    </View>
+                  )}
+                  {!urgentShiftResult.canInsert && urgentShiftResult.reason && urgentSelectedSlots.length > 0 && isUrgentMerged && (
+                    <View className={classnames(styles.impactAlert, styles.errorAlert)}>
+                      <Text className={styles.impactTitle}>❌ {urgentShiftResult.reason}</Text>
                     </View>
                   )}
                 </>

@@ -737,6 +737,57 @@
   color: $color-text-secondary;
 }
 
+.shiftItem {
+  padding: $spacing-xs 0;
+  border-bottom: 1rpx dashed rgba(0, 0, 0, 0.05);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.shiftPlate {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+}
+
+.shiftTimeRow {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: $font-size-xs;
+}
+
+.shiftOriginal {
+  color: $color-text-secondary;
+  text-decoration: line-through;
+}
+
+.shiftArrow {
+  color: $color-text-tertiary;
+}
+
+.shiftNew {
+  color: $color-error;
+  font-weight: $font-weight-semibold;
+}
+
+.shiftMinutes {
+  color: $color-text-tertiary;
+  font-size: 20rpx;
+}
+
+.errorAlert {
+  background: rgba(255, 77, 79, 0.08) !important;
+  border-color: rgba(255, 77, 79, 0.4) !important;
+}
+
+.errorAlert .impactTitle {
+  color: $color-error !important;
+}
+
 .modalActions {
   display: flex;
   gap: $spacing-md;

@@ -122,13 +122,24 @@ export interface AppActions {
   mergeTimeSlots: (orderIds: string[]) => void;
   addQueueItem: (repairOrderId: string) => void;
   callNextNumber: () => void;
+  callSpecificItem: (queueItemId: string) => void;
   markAsSkipped: (queueItemId: string) => void;
   cancelQueueItem: (queueItemId: string) => void;
   completeService: (queueItemId: string) => void;
   assignStationAndStart: (queueItemId: string, stationId: string, stationName: string, date: string, timeSlots: TimeSlot[], mergedSlot?: TimeSlot) => void;
   delayRepairOrder: (orderId: string, additionalMinutes: number) => void;
   transferRepairOrder: (orderId: string, newStationId: string, newStationName: string, date: string, newTimeSlots: TimeSlot[], newMergedSlot?: TimeSlot) => void;
-  insertUrgentOrder: (order: Omit<RepairOrder, 'id' | 'orderNumber' | 'skipCount' | 'isSkipped' | 'createdAt' | 'scheduleDate'> & { scheduleDate?: string }) => string;
+  insertUrgentOrder: (params: {
+    stationId: string;
+    stationName: string;
+    date: string;
+    startTime: string;
+    durationSlots: number;
+    vehicle: VehicleInfo;
+    serviceType: string;
+    description: string;
+    createdBy: string;
+  }) => { success: boolean; orderId?: string; reason?: string };
   addPart: (repairOrderId: string, part: Omit<PartItem, 'id'>) => void;
   setSelectedDate: (date: string) => void;
   updateConfig: (config: Partial<AppConfig>) => void;

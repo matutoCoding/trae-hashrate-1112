@@ -331,3 +331,114 @@ export const getSlotConflicts = (
 
   return { conflictingSlots, selectedBlocks };
 };
+
+export interface ShiftedOrder {
+  order: RepairOrder;
+  newTimeSlots: TimeSlot[];
+  newMergedSlot?: TimeSlot;
+  originalStartTime: string;
+  newStartTime: string;
+  shiftMinutes: number;
+}
+
+export const calculateShiftedOrders = (
+  urgentStartTime: string,
+  urgentDurationSlots: number,
+  stationOrders: RepairOrder[],
+  allSlots: TimeSlot[],
+  date: string,
+  slotDuration: number
+): {
+  canInsert: boolean;
+  reason?: string;
+  shiftedOrders: ShiftedOrder[];
+  urgentEndTime: string;
+  urgentSlots: TimeSlot[];
+} => {
+  const sortedOrders = [...stationOrders]
+    .filter((o) => o.status !== 'cancelled')
+    .sort((a, b) => {
+      const aStart = a.mergedSlot?.startTime || a.timeSlots[0]?.startTime || '23:59';
+      const bStart = b.mergedSlot?.startTime || b.timeSlots[0]?.startTime || '23:59';
+      return aStart.localeCompare(bStart);
+    });
+
+  const urgentStartIdx = allSlots.findIndex((s) => s.startTime === urgentStartTime);
+  if (urgentStartIdx === -1) {
+    return { canInsert: false, reason: '开始时间无效', shiftedOrders: [], urgentEndTime: '', urgentSlots: [] };
+  }
+
+  const urgentEndIdx = urgentStartIdx + urgentDurationSlots - 1;
+  if (urgentEndIdx >= allSlots.length) {
+    return { canInsert: false, reason: '急修单超出营业时间', shiftedOrders: [], urgentEndTime: '', urgentSlots: [] };
+  }
+
+  const urgentSlots = allSlots.slice(urgentStartIdx, urgentEndIdx + 1);
+  const urgentEndTime = urgentSlots[urgentSlots.length - 1].endTime;
+
+  const shiftedOrders: ShiftedOrder[] = [];
+  let currentShiftSlots = urgentDurationSlots;
+
+  for (const order of sortedOrders) {
+    const orderSlots = order.mergedSlot ? [order.mergedSlot] : order.timeSlots;
+    const orderStartSlot = orderSlots[0];
+    const orderEndSlot = orderSlots[orderSlots.length - 1];
+
+    const orderStartIdx = allSlots.findIndex((s) => s.startTime === orderStartSlot.startTime);
+    const orderEndIdx = allSlots.findIndex((s) => s.endTime === orderEndSlot.endTime);
+    if (orderStartIdx === -1) continue;
+
+    const orderSlotCount = orderEndIdx - orderStartIdx + 1;
+
+    if (orderEndIdx < urgentStartIdx) {
+      continue;
+    }
+
+    if (orderStartIdx >= urgentStartIdx) {
+      const newStartIdx = orderStartIdx + currentShiftSlots;
+      const newEndIdx = orderEndIdx + currentShiftSlots;
+
+      if (newEndIdx >= allSlots.length) {
+        return {
+          canInsert: false,
+          reason: `工单 ${order.vehicle.plateNumber} 顺延超出营业时间`,
+          shiftedOrders,
+          urgentEndTime,
+          urgentSlots
+        };
+      }
+
+      const newSlots = allSlots.slice(newStartIdx, newEndIdx + 1);
+      const newStartTime = newSlots[0].startTime;
+      const shiftMinutes = currentShiftSlots * slotDuration;
+
+      shiftedOrders.push({
+        order,
+        newTimeSlots: newSlots,
+        newMergedSlot: order.mergedSlot
+          ? { id: `merged-${Date.now()}`, startTime: newSlots[0].startTime, endTime: newSlots[newSlots.length - 1].endTime }
+          : undefined,
+        originalStartTime: orderStartSlot.startTime,
+        newStartTime,
+        shiftMinutes
+      });
+
+      currentShiftSlots += orderSlotCount;
+    } else {
+      return {
+        canInsert: false,
+        reason: `工单 ${order.vehicle.plateNumber} 与急修单部分重叠`,
+        shiftedOrders,
+        urgentEndTime,
+        urgentSlots
+      };
+    }
+  }
+
+  return {
+    canInsert: true,
+    shiftedOrders,
+    urgentEndTime,
+    urgentSlots
+  };
+};

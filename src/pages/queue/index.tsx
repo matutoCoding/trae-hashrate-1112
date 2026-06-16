@@ -14,6 +14,7 @@ const QueuePage: React.FC = () => {
   const {
     queue,
     callNextNumber,
+    callSpecificItem,
     markAsSkipped,
     completeService,
     cancelQueueItem,
@@ -145,19 +146,9 @@ const QueuePage: React.FC = () => {
   }, [cancelQueueItem]);
 
   const handleCallItem = useCallback((queueItemId: string) => {
-    const item = queue.find((q) => q.id === queueItemId);
-    if (item) {
-      useAppStore.setState((state) => ({
-        queue: state.queue.map((q) =>
-          q.id === queueItemId
-            ? { ...q, status: 'called', calledAt: dayjs().toISOString() }
-            : q
-        ),
-        currentCallingNumber: item.queueNumber
-      }));
-      Taro.vibrateShort();
-    }
-  }, [queue]);
+    callSpecificItem(queueItemId);
+    Taro.vibrateShort();
+  }, [callSpecificItem]);
 
   const handleOpenAssign = useCallback((queueItemId: string) => {
     setAssigningQueueItemId(queueItemId);

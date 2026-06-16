@@ -11,7 +11,8 @@ import {
   getAvailableTimeSlots,
   splitTimeSlot as splitSlotUtil,
   mergeTimeSlots as mergeSlotsUtil,
-  isSlotOccupiedByOrder
+  isSlotOccupiedByOrder,
+  calculateShiftedOrders
 } from '@/utils/schedule';
 import {
   createQueueItem,
@@ -286,6 +287,30 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     console.log('[Queue] 叫号:', nextItem.queueNumber, nextItem.vehicle.plateNumber);
   },
 
+  callSpecificItem: (queueItemId) => {
+    const state = get();
+    const item = state.queue.find((q) => q.id === queueItemId);
+    if (!item) return;
+    if (item.status !== 'waiting' && item.status !== 'skipped') return;
+
+    set((prev) => {
+      const newQueue = prev.queue.map((q) =>
+        q.id === queueItemId
+          ? { ...q, status: 'called', calledAt: dayjs().toISOString() }
+          : q
+      );
+      saveToStorage({ queue: newQueue, currentCallingNumber: item.queueNumber });
+      return {
+        queue: newQueue,
+        currentCallingNumber: item.queueNumber
+      };
+    });
+
+    get().updateRepairOrder(item.repairOrderId, { status: 'queuing' });
+
+    console.log('[Queue] 指定叫号:', item.queueNumber, item.vehicle.plateNumber);
+  },
+
   markAsSkipped: (queueItemId) => {
     const state = get();
     const queueItem = state.queue.find((q) => q.id === queueItemId);
@@ -452,25 +477,74 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     console.log('[Repair] 转移工位:', orderId, '到', newStationName);
   },
 
-  insertUrgentOrder: (order) => {
+  insertUrgentOrder: (params) => {
     const state = get();
-    const newOrder: RepairOrder = {
-      ...order,
+    const { stationId, stationName, date, startTime, durationSlots, vehicle, serviceType, description, createdBy } = params;
+
+    const allSlots = generateTimeSlots(state.config, date);
+    const stationOrders = state.repairOrders.filter(
+      (o) => o.stationId === stationId && o.status !== 'cancelled' && o.scheduleDate === date
+    );
+
+    const result = calculateShiftedOrders(
+      startTime,
+      durationSlots,
+      stationOrders,
+      allSlots,
+      date,
+      state.config.timeSlotDuration
+    );
+
+    if (!result.canInsert) {
+      return { success: false, reason: result.reason };
+    }
+
+    const urgentOrder: RepairOrder = {
       id: `repair-urgent-${Date.now()}`,
       orderNumber: `JX${dayjs().format('YYYYMMDDHHmmss')}`,
-      scheduleDate: order.scheduleDate || state.selectedDate,
+      stationId,
+      stationName,
+      vehicle,
+      status: 'in_progress',
+      serviceType,
+      description,
+      scheduleDate: date,
+      timeSlots: result.urgentSlots.map((s, i) => ({ ...s, id: `slot-urgent-${Date.now()}-${i}` })),
+      mergedSlot: durationSlots > 1
+        ? { id: `merged-urgent-${Date.now()}`, startTime: result.urgentSlots[0].startTime, endTime: result.urgentEndTime }
+        : undefined,
+      estimatedDuration: durationSlots * state.config.timeSlotDuration,
+      actualStartTime: dayjs().toISOString(),
+      parts: [],
       skipCount: 0,
       isSkipped: false,
       isUrgent: true,
-      createdAt: dayjs().toISOString()
+      createdAt: dayjs().toISOString(),
+      createdBy
     };
-    set((s) => {
-      const newRepairOrders = [...s.repairOrders, newOrder];
+
+    set((prev) => {
+      let newRepairOrders = [...prev.repairOrders, urgentOrder];
+
+      for (const shifted of result.shiftedOrders) {
+        newRepairOrders = newRepairOrders.map((o) => {
+          if (o.id === shifted.order.id) {
+            return {
+              ...o,
+              timeSlots: shifted.newTimeSlots.map((s, i) => ({ ...s, id: `shifted-${o.id}-${i}` })),
+              mergedSlot: shifted.newMergedSlot
+            };
+          }
+          return o;
+        });
+      }
+
       saveToStorage({ repairOrders: newRepairOrders });
       return { repairOrders: newRepairOrders };
     });
-    console.log('[Repair] 插入急修单:', newOrder.orderNumber);
-    return newOrder.id;
+
+    console.log('[Repair] 插入急修单:', urgentOrder.orderNumber, '影响', result.shiftedOrders.length, '个工单顺延');
+    return { success: true, orderId: urgentOrder.id };
   },
 
   addPart: (repairOrderId, part) => {
