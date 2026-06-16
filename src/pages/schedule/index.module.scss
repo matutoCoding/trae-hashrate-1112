@@ -439,3 +439,331 @@
 .weekWrapper {
   min-width: 100%;
 }
+
+.filterBar {
+  display: flex;
+  gap: $spacing-sm;
+  padding: $spacing-sm 0;
+  margin-bottom: $spacing-sm;
+}
+
+.filterBtn {
+  @include button-reset;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: $spacing-sm $spacing-md;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  border: 1rpx solid $color-divider;
+  white-space: nowrap;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.filterArrow {
+  font-size: 20rpx;
+  color: $color-text-tertiary;
+}
+
+.urgentBtn {
+  background: linear-gradient(135deg, #FF4D4F 0%, #FF7875 100%) !important;
+  color: $color-text-white !important;
+  border-color: #FF4D4F !important;
+  font-weight: $font-weight-medium;
+}
+
+.weekCellBusy {
+  background: rgba(255, 77, 79, 0.05);
+}
+
+.weekCellFree {
+  background: rgba(82, 196, 26, 0.05);
+}
+
+.busyBar {
+  background: rgba(255, 77, 79, 0.1) !important;
+}
+
+.freeBar {
+  background: rgba(82, 196, 26, 0.1) !important;
+}
+
+.busyFill {
+  background: linear-gradient(90deg, #FF4D4F 0%, #FF7875 100%) !important;
+}
+
+.freeFill {
+  background: linear-gradient(90deg, #52C41A 0%, #73D13D 100%) !important;
+}
+
+.busyText {
+  color: $color-error !important;
+}
+
+.legendDot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: $radius-round;
+
+  &.available { background: $color-success; }
+  &.occupied { background: $color-primary; }
+  &.merged { background: $color-primary; border-left: 4rpx solid $color-primary-dark; }
+  &.maintenance { background: $color-warning; }
+  &.inProgressDot { background: $color-success; box-shadow: 0 0 6rpx rgba(82, 196, 26, 0.5); }
+  &.overtimeDot { background: $color-error; box-shadow: 0 0 6rpx rgba(255, 77, 79, 0.5); }
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  width: 680rpx;
+  max-height: 85vh;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  text-align: center;
+  margin-bottom: $spacing-lg;
+}
+
+.formItem {
+  margin-bottom: $spacing-md;
+}
+
+.formLabel {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-xs;
+  display: block;
+}
+
+.formInput {
+  height: 80rpx;
+  padding: 0 $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+}
+
+.formPicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80rpx;
+  padding: 0 $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+}
+
+.delayOptions {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.delayBtn {
+  @include button-reset;
+  flex: 1;
+  height: 64rpx;
+  border-radius: $radius-md;
+  background: $color-bg-page;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  border: 2rpx solid transparent;
+
+  &.active {
+    background: rgba(22, 119, 255, 0.1);
+    border-color: $color-primary;
+    color: $color-primary;
+    font-weight: $font-weight-medium;
+  }
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.transferInfo {
+  padding: $spacing-md;
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.1) 0%, rgba(22, 119, 255, 0.05) 100%);
+  border-radius: $radius-md;
+  margin-bottom: $spacing-md;
+  text-align: center;
+}
+
+.transferPlate {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.transferMeta {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-top: 4rpx;
+}
+
+.recommendList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.recommendItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm $spacing-md;
+  background: linear-gradient(135deg, rgba(82, 196, 26, 0.1) 0%, rgba(82, 196, 26, 0.05) 100%);
+  border: 1rpx solid rgba(82, 196, 26, 0.3);
+  border-radius: $radius-sm;
+
+  &:active {
+    background: linear-gradient(135deg, rgba(82, 196, 26, 0.2) 0%, rgba(82, 196, 26, 0.1) 100%);
+  }
+}
+
+.recommendTime {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-success;
+}
+
+.recommendMeta {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-sm;
+}
+
+.slotItem {
+  padding: $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+  text-align: center;
+  font-size: $font-size-xs;
+  border: 2rpx solid transparent;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.slotOccupied {
+  background: rgba(255, 77, 79, 0.1);
+  color: $color-text-tertiary;
+  text-decoration: line-through;
+}
+
+.slotSelected {
+  border-color: $color-primary;
+  background: rgba(22, 119, 255, 0.1);
+  color: $color-primary;
+  font-weight: $font-weight-semibold;
+}
+
+.slotMerged {
+  background: $gradient-primary;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.urgentScroll {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.impactAlert {
+  padding: $spacing-md;
+  background: rgba(255, 77, 79, 0.08);
+  border: 1rpx solid rgba(255, 77, 79, 0.3);
+  border-radius: $radius-md;
+  margin-top: $spacing-sm;
+}
+
+.impactTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-error;
+  margin-bottom: $spacing-sm;
+}
+
+.impactItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-xs 0;
+}
+
+.impactPlate {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.impactTime {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.modalActions {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.modalBtn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  transition: all $transition-base;
+
+  &.cancel {
+    background: $color-bg-page;
+    color: $color-text-secondary;
+  }
+
+  &.confirm {
+    background: $gradient-primary;
+    color: $color-text-white;
+  }
+
+  &:active {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+}

@@ -130,16 +130,15 @@ const QueuePage: React.FC = () => {
   }, [markAsSkipped]);
 
   const handleComplete = useCallback((queueItemId: string) => {
-    completeService(queueItemId);
-    const queueItem = queue.find((q) => q.id === queueItemId);
-    if (queueItem) {
-      const store = useAppStore.getState();
-      store.updateRepairOrder(queueItem.repairOrderId, {
-        status: 'in_progress',
-        actualStartTime: dayjs().toISOString()
-      });
+    const item = queue.find((q) => q.id === queueItemId);
+    if (!item) return;
+    if (item.status === 'called') {
+      handleOpenAssign(queueItemId);
+    } else if (item.status === 'serving') {
+      completeService(queueItemId);
+      Taro.showToast({ title: '维修完成', icon: 'success' });
     }
-  }, [completeService, queue]);
+  }, [queue, completeService, handleOpenAssign]);
 
   const handleCancel = useCallback((queueItemId: string) => {
     cancelQueueItem(queueItemId);
@@ -453,6 +452,18 @@ const QueuePage: React.FC = () => {
 
       <Button className={styles.floatingBtn} onClick={handleAddQueue}>
         +
+      </Button>
+
+      <Button
+        className={styles.urgentFloatBtn}
+        onClick={() => {
+          Taro.switchTab({ url: '/pages/schedule/index' });
+          setTimeout(() => {
+            Taro.eventCenter.trigger('openUrgentModal');
+          }, 300);
+        }}
+      >
+        🚨
       </Button>
 
       {showAddModal && (

@@ -1,5 +1,10 @@
 @use '@/styles/variables.scss' as *;
 
+@keyframes pulse-overtime {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 .slot {
   display: flex;
   align-items: center;
@@ -37,6 +42,17 @@
   &.selected {
     border-color: $color-primary;
     box-shadow: 0 0 0 4rpx rgba(22, 119, 255, 0.2);
+  }
+
+  &.inProgress {
+    background: $gradient-occupied;
+    color: $color-text-white;
+    border-left: 6rpx solid $color-success;
+  }
+
+  &.overtime {
+    border-left: 6rpx solid $color-error;
+    animation: pulse-overtime 2s ease-in-out infinite;
   }
 }
 
@@ -84,4 +100,80 @@
   &.occupied {
     background: $color-text-white;
   }
+
+  &.inProgress {
+    background: $color-success;
+    box-shadow: 0 0 8rpx rgba(82, 196, 26, 0.6);
+  }
+}
+
+.progressSection {
+  margin-top: $spacing-xs;
+}
+
+.progressInfo {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: 6rpx;
+}
+
+.elapsed {
+  font-size: $font-size-xs;
+  color: $color-text-white;
+  opacity: 0.9;
+}
+
+.remaining {
+  font-size: $font-size-xs;
+  color: $color-text-white;
+  opacity: 0.75;
+}
+
+.overtimeText {
+  font-size: $font-size-xs;
+  color: $color-error;
+  font-weight: $font-weight-medium;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-round;
+  overflow: hidden;
+  margin-bottom: $spacing-xs;
+}
+
+.progressFill {
+  height: 100%;
+  background: $color-success;
+  border-radius: $radius-round;
+  transition: width 1s linear;
+}
+
+.progressFillOvertime {
+  background: $color-error;
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-xs;
+}
+
+.actionBtn {
+  padding: 4rpx 16rpx;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: $radius-xs;
+  border: 1rpx solid rgba(255, 255, 255, 0.3);
+  transition: background $transition-base;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.actionBtnText {
+  font-size: $font-size-xs;
+  color: $color-text-white;
 }

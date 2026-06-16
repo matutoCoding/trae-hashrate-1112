@@ -58,6 +58,7 @@ export interface RepairOrder {
   queueNumber?: number;
   skipCount: number;
   isSkipped: boolean;
+  isUrgent?: boolean;
   createdAt: string;
   createdBy: string;
   notes?: string;
@@ -125,6 +126,9 @@ export interface AppActions {
   cancelQueueItem: (queueItemId: string) => void;
   completeService: (queueItemId: string) => void;
   assignStationAndStart: (queueItemId: string, stationId: string, stationName: string, date: string, timeSlots: TimeSlot[], mergedSlot?: TimeSlot) => void;
+  delayRepairOrder: (orderId: string, additionalMinutes: number) => void;
+  transferRepairOrder: (orderId: string, newStationId: string, newStationName: string, date: string, newTimeSlots: TimeSlot[], newMergedSlot?: TimeSlot) => void;
+  insertUrgentOrder: (order: Omit<RepairOrder, 'id' | 'orderNumber' | 'skipCount' | 'isSkipped' | 'createdAt' | 'scheduleDate'> & { scheduleDate?: string }) => string;
   addPart: (repairOrderId: string, part: Omit<PartItem, 'id'>) => void;
   setSelectedDate: (date: string) => void;
   updateConfig: (config: Partial<AppConfig>) => void;

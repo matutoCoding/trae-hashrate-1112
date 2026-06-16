@@ -486,3 +486,25 @@
   color: $color-text-primary;
   font-weight: $font-weight-semibold;
 }
+
+.urgentFloatBtn {
+  position: fixed;
+  right: $page-padding;
+  bottom: 250rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, #FF4D4F 0%, #FF7875 100%);
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(255, 77, 79, 0.4);
+  z-index: 100;
+
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+}

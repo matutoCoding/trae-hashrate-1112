@@ -382,6 +382,97 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     console.log('[Queue] 安排工位并开始维修:', queueItem.queueNumber, '工位:', stationName, '时段:', timeSlots.map((s) => s.startTime).join(','));
   },
 
+  delayRepairOrder: (orderId, additionalMinutes) => {
+    const state = get();
+    const order = state.repairOrders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    const date = order.scheduleDate;
+    const extraSlots = Math.ceil(additionalMinutes / state.config.timeSlotDuration);
+
+    const currentLastSlot = order.timeSlots[order.timeSlots.length - 1];
+    const [lastH, lastM] = currentLastSlot.endTime.split(':').map(Number);
+    const newTimeSlots: TimeSlot[] = [...order.timeSlots];
+
+    for (let i = 0; i < extraSlots; i++) {
+      const prevSlot = newTimeSlots[newTimeSlots.length - 1];
+      const [ph, pm] = prevSlot.endTime.split(':').map(Number);
+      const totalMin = ph * 60 + pm;
+      const startH = Math.floor(totalMin / 60) % 24;
+      const startM = totalMin % 60;
+      const endTotal = totalMin + state.config.timeSlotDuration;
+      const endH = Math.floor(endTotal / 60) % 24;
+      const endM = endTotal % 60;
+      newTimeSlots.push({
+        id: `slot-delay-${Date.now()}-${i}`,
+        startTime: `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`,
+        endTime: `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+      });
+    }
+
+    const merged = mergeSlotsUtil(newTimeSlots, date);
+    set((prev) => {
+      const newRepairOrders = prev.repairOrders.map((o) => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            timeSlots: newTimeSlots,
+            mergedSlot: merged || undefined,
+            estimatedDuration: o.estimatedDuration + additionalMinutes
+          };
+        }
+        return o;
+      });
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
+
+    console.log('[Repair] 延时:', orderId, '额外', additionalMinutes, '分钟');
+  },
+
+  transferRepairOrder: (orderId, newStationId, newStationName, date, newTimeSlots, newMergedSlot) => {
+    set((prev) => {
+      const newRepairOrders = prev.repairOrders.map((o) => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            stationId: newStationId,
+            stationName: newStationName,
+            scheduleDate: date,
+            timeSlots: newTimeSlots,
+            mergedSlot: newMergedSlot
+          };
+        }
+        return o;
+      });
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
+
+    console.log('[Repair] 转移工位:', orderId, '到', newStationName);
+  },
+
+  insertUrgentOrder: (order) => {
+    const state = get();
+    const newOrder: RepairOrder = {
+      ...order,
+      id: `repair-urgent-${Date.now()}`,
+      orderNumber: `JX${dayjs().format('YYYYMMDDHHmmss')}`,
+      scheduleDate: order.scheduleDate || state.selectedDate,
+      skipCount: 0,
+      isSkipped: false,
+      isUrgent: true,
+      createdAt: dayjs().toISOString()
+    };
+    set((s) => {
+      const newRepairOrders = [...s.repairOrders, newOrder];
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
+    console.log('[Repair] 插入急修单:', newOrder.orderNumber);
+    return newOrder.id;
+  },
+
   addPart: (repairOrderId, part) => {
     const newPart: PartItem = {
       ...part,
