@@ -1,0 +1,87 @@
+@use '@/styles/variables.scss' as *;
+
+.slot {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  margin-bottom: $spacing-xs;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+  border: 2rpx solid transparent;
+
+  &.available {
+    background: rgba(82, 196, 26, 0.08);
+    border-color: rgba(82, 196, 26, 0.3);
+
+    &:active {
+      background: rgba(82, 196, 26, 0.15);
+    }
+  }
+
+  &.occupied {
+    background: $gradient-occupied;
+    color: $color-text-white;
+  }
+
+  &.merged {
+    background: $gradient-occupied;
+    color: $color-text-white;
+    border-left: 6rpx solid $color-primary-dark;
+  }
+
+  &.maintenance {
+    background: rgba(250, 173, 20, 0.1);
+    opacity: 0.6;
+  }
+
+  &.selected {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 4rpx rgba(22, 119, 255, 0.2);
+  }
+}
+
+.time {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  min-width: 140rpx;
+}
+
+.content {
+  flex: 1;
+  margin-left: $spacing-md;
+}
+
+.vehicle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  @include text-ellipsis;
+}
+
+.service {
+  font-size: $font-size-xs;
+  opacity: 0.85;
+  @include text-ellipsis;
+}
+
+.mergedTag {
+  padding: 2rpx 12rpx;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  margin-left: $spacing-sm;
+}
+
+.statusDot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: $radius-round;
+  margin-right: $spacing-sm;
+
+  &.available {
+    background: $color-success;
+  }
+
+  &.occupied {
+    background: $color-text-white;
+  }
+}

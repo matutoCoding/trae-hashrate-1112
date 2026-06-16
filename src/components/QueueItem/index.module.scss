@@ -1,0 +1,154 @@
+@use '@/styles/variables.scss' as *;
+
+.item {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+
+  &.called {
+    border: 2rpx solid $color-primary;
+    background: rgba(22, 119, 255, 0.03);
+  }
+
+  &.skipped {
+    opacity: 0.85;
+    border-left: 6rpx solid $color-warning;
+  }
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.95;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.queueNumber {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.numberBadge {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+
+  &.waiting {
+    background: $gradient-queuing;
+  }
+
+  &.called {
+    background: $gradient-primary;
+  }
+
+  &.skipped {
+    background: linear-gradient(135deg, #FAAD14 0%, #FFC53D 100%);
+  }
+
+  &.serving {
+    background: $gradient-success;
+  }
+
+  &.cancelled {
+    background: linear-gradient(135deg, #FF4D4F 0%, #FF7875 100%);
+  }
+
+  &.completed {
+    background: linear-gradient(135deg, #86909C 0%, #C9CDD4 100%);
+  }
+}
+
+.vehicleInfo {
+  flex: 1;
+}
+
+.plate {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.service {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $color-divider;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.skipWarning {
+  color: $color-warning;
+  font-weight: $font-weight-medium;
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $color-divider;
+}
+
+.btn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-sm;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+
+  &.primary {
+    background: $gradient-primary;
+    color: $color-text-white;
+  }
+
+  &.warning {
+    background: linear-gradient(135deg, #FAAD14 0%, #FFC53D 100%);
+    color: $color-text-white;
+  }
+
+  &.danger {
+    background: linear-gradient(135deg, #FF4D4F 0%, #FF7875 100%);
+    color: $color-text-white;
+  }
+
+  &.success {
+    background: $gradient-success;
+    color: $color-text-white;
+  }
+}

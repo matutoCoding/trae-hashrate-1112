@@ -1,0 +1,45 @@
+// ============================================
+// 主题配色变量（第二阶段模型可修改此文件）
+// ============================================
+
+// 品牌主题色：科技蓝（汽修专业感）
+$color-primary: #1677FF;
+$color-primary-light: #4096FF;
+$color-primary-dark: #0958D9;
+
+// 功能色
+$color-success: #52C41A;
+$color-warning: #FAAD14;
+$color-error: #FF4D4F;
+$color-info: #1677FF;
+
+// 业务色
+$color-industrial-orange: #FA8C16;
+$color-industrial-orange-light: #FFA940;
+$color-occupied: #1677FF;
+$color-available: #52C41A;
+$color-queuing: #FA8C16;
+$color-skipped: #FAAD14;
+$color-cancelled: #FF4D4F;
+
+// 背景色
+$color-bg-page: #F5F7FA;
+$color-bg-card: #FFFFFF;
+$color-bg-hover: #F2F3F5;
+
+// 文本色
+$color-text-primary: #1D2129;
+$color-text-secondary: #4E5969;
+$color-text-tertiary: #86909C;
+$color-text-disabled: #C9CDD4;
+$color-text-white: #FFFFFF;
+
+// 边框色
+$color-border: #E5E6EB;
+$color-divider: #F2F3F5;
+
+// 渐变
+$gradient-primary: linear-gradient(135deg, #1677FF 0%, #4096FF 100%);
+$gradient-occupied: linear-gradient(135deg, #1677FF 0%, #4096FF 100%);
+$gradient-queuing: linear-gradient(135deg, #FA8C16 0%, #FFA940 100%);
+$gradient-success: linear-gradient(135deg, #52C41A 0%, #73D13D 100%);
