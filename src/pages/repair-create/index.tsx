@@ -187,6 +187,7 @@ const RepairCreatePage: React.FC = () => {
       status: 'pending',
       serviceType: form.serviceType,
       description: form.description.trim() || '无',
+      scheduleDate: currentDate,
       timeSlots,
       mergedSlot,
       estimatedDuration: estimatedDuration || Number(form.estimatedDuration) || 60,

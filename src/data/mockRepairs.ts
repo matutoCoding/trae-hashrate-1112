@@ -2,6 +2,9 @@ import dayjs from 'dayjs';
 import type { RepairOrder } from '@/types';
 
 const today = dayjs().format('YYYY-MM-DD');
+const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+const dayAfterTomorrow = dayjs().add(2, 'day').format('YYYY-MM-DD');
 
 export const mockRepairs: RepairOrder[] = [
   {
@@ -20,6 +23,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'in_progress',
     serviceType: '常规保养',
     description: '更换机油机滤、空气滤芯、空调滤芯，全车检查',
+    scheduleDate: today,
     timeSlots: [
       { id: 'slot-1', startTime: '08:30', endTime: '09:00' },
       { id: 'slot-2', startTime: '09:00', endTime: '09:30' },
@@ -71,6 +75,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'queuing',
     serviceType: '四轮定位',
     description: '车辆行驶跑偏，需要做四轮定位调整',
+    scheduleDate: today,
     timeSlots: [
       { id: 'slot-4', startTime: '10:00', endTime: '10:30' },
       { id: 'slot-5', startTime: '10:30', endTime: '11:00' }
@@ -99,6 +104,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'pending',
     serviceType: '刹车系统检修',
     description: '检查刹车片磨损情况，必要时更换前刹车片',
+    scheduleDate: today,
     timeSlots: [
       { id: 'slot-6', startTime: '10:00', endTime: '10:30' },
       { id: 'slot-7', startTime: '10:30', endTime: '11:00' },
@@ -128,6 +134,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'in_progress',
     serviceType: '底盘维修',
     description: '过减速带时异响，检查悬挂和下摆臂',
+    scheduleDate: today,
     timeSlots: [
       { id: 'slot-9', startTime: '09:00', endTime: '09:30' },
       { id: 'slot-10', startTime: '09:30', endTime: '10:00' },
@@ -169,6 +176,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'completed',
     serviceType: '发动机维修',
     description: '发动机怠速抖动，清洗节气门、更换火花塞',
+    scheduleDate: today,
     timeSlots: [
       { id: 'slot-13', startTime: '08:00', endTime: '08:30' },
       { id: 'slot-14', startTime: '08:30', endTime: '09:00' }
@@ -209,6 +217,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'pending',
     serviceType: '空调维修',
     description: '空调制冷效果差，检查冷媒和压缩机',
+    scheduleDate: tomorrow,
     timeSlots: [
       { id: 'slot-15', startTime: '13:00', endTime: '13:30' },
       { id: 'slot-16', startTime: '13:30', endTime: '14:00' },
@@ -237,6 +246,7 @@ export const mockRepairs: RepairOrder[] = [
     status: 'pending',
     serviceType: '变速箱保养',
     description: '更换变速箱油和滤芯',
+    scheduleDate: dayAfterTomorrow,
     timeSlots: [
       { id: 'slot-18', startTime: '14:00', endTime: '14:30' },
       { id: 'slot-19', startTime: '14:30', endTime: '15:00' },
@@ -266,13 +276,14 @@ export const mockRepairs: RepairOrder[] = [
     status: 'completed',
     serviceType: '常规保养',
     description: '5000公里小保养',
+    scheduleDate: yesterday,
     timeSlots: [
       { id: 'slot-y1', startTime: '09:00', endTime: '09:30' },
       { id: 'slot-y2', startTime: '09:30', endTime: '10:00' }
     ],
     estimatedDuration: 60,
-    actualStartTime: `${dayjs().subtract(1, 'day').format('YYYY-MM-DD')} 09:05:00`,
-    actualEndTime: `${dayjs().subtract(1, 'day').format('YYYY-MM-DD')} 09:50:00`,
+    actualStartTime: `${yesterday} 09:05:00`,
+    actualEndTime: `${yesterday} 09:50:00`,
     parts: [
       {
         id: 'part-005',
@@ -281,13 +292,13 @@ export const mockRepairs: RepairOrder[] = [
         quantity: 1,
         unit: '个',
         price: 38,
-        pickupTime: `${dayjs().subtract(1, 'day').format('YYYY-MM-DD')} 09:10:00`,
+        pickupTime: `${yesterday} 09:10:00`,
         operator: '李师傅'
       }
     ],
     skipCount: 0,
     isSkipped: false,
-    createdAt: `${dayjs().subtract(1, 'day').format('YYYY-MM-DD')} 08:30:00`,
+    createdAt: `${yesterday} 08:30:00`,
     createdBy: '王主管'
   }
 ];

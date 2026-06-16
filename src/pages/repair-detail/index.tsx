@@ -37,8 +37,14 @@ const RepairDetailPage: React.FC = () => {
   }, [repairOrders, orderId]);
 
   const displaySlot = useMemo(() => {
-    if (!repair) return null;
-    return repair.mergedSlot || repair.timeSlots[0];
+    if (!repair || repair.timeSlots.length === 0) return null;
+    if (repair.mergedSlot) return repair.mergedSlot;
+    const sorted = [...repair.timeSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return {
+      id: 'display',
+      startTime: sorted[0].startTime,
+      endTime: sorted[sorted.length - 1].endTime
+    };
   }, [repair]);
 
   const totalPartsAmount = useMemo(() => {
@@ -57,11 +63,33 @@ const RepairDetailPage: React.FC = () => {
   }, [displaySlot]);
 
   const handleConfirmSplit = useCallback(() => {
-    if (!repair || !splitTime) return;
-    splitTimeSlot(repair.id, splitTime);
-    setShowSplitModal(false);
-    Taro.showToast({ title: '拆分成功', icon: 'success' });
-  }, [repair, splitTime, splitTimeSlot]);
+    if (!repair || !splitTime || !displaySlot) return;
+
+    const start = dayjs(`2024-01-01 ${displaySlot.startTime}`);
+    const end = dayjs(`2024-01-01 ${displaySlot.endTime}`);
+    const split = dayjs(`2024-01-01 ${splitTime}`);
+
+    if (split.isSame(start) || split.isSame(end) || split.isBefore(start) || split.isAfter(end)) {
+      Taro.showToast({
+        title: `请选择 ${displaySlot.startTime} - ${displaySlot.endTime} 之间的时间`,
+        icon: 'none',
+        duration: 2500
+      });
+      return;
+    }
+
+    const success = splitTimeSlot(repair.id, splitTime);
+    if (success) {
+      setShowSplitModal(false);
+      Taro.showToast({ title: '拆分成功，后续时段已释放', icon: 'success' });
+    } else {
+      Taro.showToast({
+        title: '拆分失败，请重新选择有效时间',
+        icon: 'none',
+        duration: 2000
+      });
+    }
+  }, [repair, splitTime, splitTimeSlot, displaySlot]);
 
   const handleSubmitPart = useCallback(() => {
     if (!repair || !partForm.name.trim()) {

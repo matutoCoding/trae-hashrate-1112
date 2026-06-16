@@ -100,7 +100,10 @@ export const findMergedOrderSlots = (
   date: string
 ): RepairOrder[] => {
   const stationOrders = orders.filter(
-    (o) => o.stationId === stationId && o.status !== 'cancelled' && o.timeSlots.length > 0
+    (o) => o.stationId === stationId
+      && o.status !== 'cancelled'
+      && o.timeSlots.length > 0
+      && o.scheduleDate === date
   );
 
   const sortedOrders = [...stationOrders].sort((a, b) => {
@@ -162,20 +165,31 @@ export const findMergedOrderSlots = (
   return result;
 };
 
+export const isSlotOccupiedByOrder = (
+  slot: TimeSlot,
+  order: RepairOrder,
+  date: string
+): boolean => {
+  if (order.scheduleDate !== date) return false;
+
+  const allOrderSlots = order.mergedSlot
+    ? [order.mergedSlot]
+    : order.timeSlots;
+
+  return allOrderSlots.some((orderSlot) => isTimeOverlap(slot, orderSlot, date));
+};
+
 export const getAvailableTimeSlots = (
   allSlots: TimeSlot[],
   occupiedOrders: RepairOrder[],
   date: string
 ): TimeSlot[] => {
-  const occupiedSlots = occupiedOrders.flatMap((order) => {
-    if (order.mergedSlot) {
-      return [order.mergedSlot];
-    }
-    return order.timeSlots;
-  });
+  const validOrders = occupiedOrders.filter(
+    (o) => o.status !== 'cancelled' && o.scheduleDate === date
+  );
 
   return allSlots.filter((slot) => {
-    return !occupiedSlots.some((occupied) => isTimeOverlap(slot, occupied, date));
+    return !validOrders.some((order) => isSlotOccupiedByOrder(slot, order, date));
   });
 };
 

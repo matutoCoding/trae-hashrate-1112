@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
+import Taro from '@tarojs/taro';
 import type { AppState, AppActions, Station, RepairOrder, QueueItem, PartItem, TimeSlot } from '@/types';
 import { mockStations } from '@/data/mockStations';
 import { mockRepairs } from '@/data/mockRepairs';
@@ -9,7 +10,8 @@ import {
   findMergedOrderSlots,
   getAvailableTimeSlots,
   splitTimeSlot as splitSlotUtil,
-  mergeTimeSlots as mergeSlotsUtil
+  mergeTimeSlots as mergeSlotsUtil,
+  isSlotOccupiedByOrder
 } from '@/utils/schedule';
 import {
   createQueueItem,
@@ -17,6 +19,8 @@ import {
   reorderSkippedItems,
   getNextCallNumber
 } from '@/utils/queue';
+
+const STORAGE_KEY = 'auto_repair_schedule_data_v1';
 
 const initialConfig = {
   maxSkipCount: 3,
@@ -28,13 +32,45 @@ const initialConfig = {
   autoMergeEnabled: true
 };
 
+const loadFromStorage = () => {
+  try {
+    const stored = Taro.getStorageSync(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        stations: parsed.stations || mockStations,
+        repairOrders: parsed.repairOrders || mockRepairs,
+        queue: parsed.queue || mockQueue,
+        config: parsed.config || initialConfig,
+        selectedDate: parsed.selectedDate || dayjs().format('YYYY-MM-DD'),
+        currentCallingNumber: parsed.currentCallingNumber ?? 1
+      };
+    }
+  } catch (e) {
+    console.warn('[Storage] 读取本地数据失败:', e);
+  }
+  return null;
+};
+
+const saveToStorage = (state: Partial<AppState>) => {
+  try {
+    const existing = loadFromStorage() || {};
+    const toSave = { ...existing, ...state };
+    Taro.setStorageSync(STORAGE_KEY, JSON.stringify(toSave));
+  } catch (e) {
+    console.warn('[Storage] 保存本地数据失败:', e);
+  }
+};
+
+const persistedInitial = loadFromStorage();
+
 const useAppStore = create<AppState & AppActions>((set, get) => ({
-  stations: mockStations,
-  repairOrders: mockRepairs,
-  queue: mockQueue,
-  config: initialConfig,
-  selectedDate: dayjs().format('YYYY-MM-DD'),
-  currentCallingNumber: 1,
+  stations: persistedInitial?.stations || mockStations,
+  repairOrders: persistedInitial?.repairOrders || mockRepairs,
+  queue: persistedInitial?.queue || mockQueue,
+  config: persistedInitial?.config || initialConfig,
+  selectedDate: persistedInitial?.selectedDate || dayjs().format('YYYY-MM-DD'),
+  currentCallingNumber: persistedInitial?.currentCallingNumber ?? 1,
 
   addStation: (station) => {
     const newStation: Station = {
@@ -42,96 +78,128 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
       id: `station-${Date.now()}`,
       createdAt: dayjs().toISOString()
     };
-    set((state) => ({ stations: [...state.stations, newStation] }));
+    set((state) => {
+      const newStations = [...state.stations, newStation];
+      saveToStorage({ stations: newStations });
+      return { stations: newStations };
+    });
     console.log('[Station] 新增工位:', newStation);
   },
 
   updateStation: (id, updates) => {
-    set((state) => ({
-      stations: state.stations.map((s) =>
+    set((state) => {
+      const newStations = state.stations.map((s) =>
         s.id === id ? { ...s, ...updates } : s
-      )
-    }));
+      );
+      saveToStorage({ stations: newStations });
+      return { stations: newStations };
+    });
     console.log('[Station] 更新工位:', id, updates);
   },
 
   deleteStation: (id) => {
-    set((state) => ({
-      stations: state.stations.filter((s) => s.id !== id)
-    }));
+    set((state) => {
+      const newStations = state.stations.filter((s) => s.id !== id);
+      saveToStorage({ stations: newStations });
+      return { stations: newStations };
+    });
     console.log('[Station] 删除工位:', id);
   },
 
   createRepairOrder: (order) => {
+    const state = get();
     const newOrder: RepairOrder = {
       ...order,
       id: `repair-${Date.now()}`,
       orderNumber: `WX${dayjs().format('YYYYMMDDHHmmss')}`,
+      scheduleDate: order.scheduleDate || state.selectedDate,
       skipCount: 0,
       isSkipped: false,
       createdAt: dayjs().toISOString()
     };
-    set((state) => ({ repairOrders: [...state.repairOrders, newOrder] }));
-    console.log('[Repair] 创建维修单:', newOrder.orderNumber);
+    set((s) => {
+      const newRepairOrders = [...s.repairOrders, newOrder];
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
+    console.log('[Repair] 创建维修单:', newOrder.orderNumber, '预约日期:', newOrder.scheduleDate);
   },
 
   updateRepairOrder: (id, updates) => {
-    set((state) => ({
-      repairOrders: state.repairOrders.map((o) =>
+    set((state) => {
+      const newRepairOrders = state.repairOrders.map((o) =>
         o.id === id ? { ...o, ...updates } : o
-      )
-    }));
+      );
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
     console.log('[Repair] 更新维修单:', id, updates);
   },
 
-  splitTimeSlot: (orderId, splitTime) => {
+  splitTimeSlot: (orderId, splitTime): boolean => {
     const state = get();
     const order = state.repairOrders.find((o) => o.id === orderId);
-    if (!order) return;
+    if (!order) return false;
 
-    const displaySlot = order.mergedSlot || order.timeSlots[0];
-    if (!displaySlot) return;
+    const date = order.scheduleDate;
+    const allOccupiedSlots = order.mergedSlot
+      ? [order.mergedSlot]
+      : order.timeSlots;
 
-    const splitResult = splitSlotUtil(displaySlot, splitTime, state.selectedDate);
-    if (!splitResult) return;
+    if (allOccupiedSlots.length === 0) return false;
+
+    const overallStart = allOccupiedSlots[0].startTime;
+    const overallEnd = allOccupiedSlots[allOccupiedSlots.length - 1].endTime;
+
+    const overallSlot = {
+      id: 'overall',
+      startTime: overallStart,
+      endTime: overallEnd
+    };
+
+    const splitResult = splitSlotUtil(overallSlot, splitTime, date);
+    if (!splitResult) {
+      console.warn('[Schedule] 无效拆分点:', splitTime, '有效范围:', overallStart, '-', overallEnd);
+      return false;
+    }
 
     const { before, after } = splitResult;
 
-    set((prev) => ({
-      repairOrders: prev.repairOrders.map((o) => {
+    set((prev) => {
+      const newRepairOrders = prev.repairOrders.map((o) => {
         if (o.id === orderId) {
-          const newOrder: RepairOrder = {
+          const keptSlots = order.timeSlots.filter((slot) => {
+            const slotEnd = dayjs(`${date} ${slot.endTime}`);
+            const splitPoint = dayjs(`${date} ${splitTime}`);
+            return slotEnd.isBefore(splitPoint) || slotEnd.isSame(splitPoint);
+          });
+
+          const finalBefore: TimeSlot = keptSlots.length > 0
+            ? keptSlots.length === 1
+              ? keptSlots[0]
+              : {
+                  id: `kept-${Date.now()}`,
+                  startTime: keptSlots[0].startTime,
+                  endTime: before.endTime
+                }
+            : before;
+
+          return {
             ...o,
-            timeSlots: [before],
+            timeSlots: keptSlots.length > 0 ? keptSlots : [finalBefore],
             mergedSlot: undefined,
+            status: 'completed' as const,
             actualEndTime: dayjs().toISOString()
           };
-
-          const continuationOrder: RepairOrder = {
-            ...o,
-            id: `repair-${Date.now()}`,
-            orderNumber: `WX${dayjs().format('YYYYMMDDHHmmss')}`,
-            timeSlots: [after],
-            mergedSlot: undefined,
-            status: 'pending',
-            actualStartTime: undefined,
-            actualEndTime: undefined,
-            parts: [],
-            createdAt: dayjs().toISOString(),
-            notes: '中途拆分，待继续维修'
-          };
-
-          setTimeout(() => {
-            set((s) => ({ repairOrders: [...s.repairOrders, continuationOrder] }));
-          }, 0);
-
-          return newOrder;
         }
         return o;
-      })
-    }));
+      });
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
 
-    console.log('[Schedule] 拆分时段:', orderId, '在', splitTime);
+    console.log('[Schedule] 拆分时段成功:', orderId, '在', splitTime, '释放时间已空闲');
+    return true;
   },
 
   mergeTimeSlots: (orderIds) => {
@@ -146,8 +214,8 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     const primaryOrder = orders[0];
     const otherOrderIds = orders.slice(1).map((o) => o.id);
 
-    set((prev) => ({
-      repairOrders: prev.repairOrders
+    set((prev) => {
+      const newRepairOrders = prev.repairOrders
         .filter((o) => !otherOrderIds.includes(o.id))
         .map((o) => {
           if (o.id === primaryOrder.id) {
@@ -159,8 +227,10 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
             };
           }
           return o;
-        })
-    }));
+        });
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
 
     console.log('[Schedule] 合并时段:', orderIds);
   },
@@ -171,7 +241,11 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     if (!repairOrder) return;
 
     const newQueueItem = createQueueItem(repairOrder, state.queue, state.config);
-    set((prev) => ({ queue: [...prev.queue, newQueueItem] }));
+    set((prev) => {
+      const newQueue = [...prev.queue, newQueueItem];
+      saveToStorage({ queue: newQueue });
+      return { queue: newQueue };
+    });
 
     get().updateRepairOrder(repairOrderId, {
       status: 'queuing',
@@ -189,8 +263,8 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
       return;
     }
 
-    set((prev) => ({
-      queue: prev.queue.map((item) => {
+    set((prev) => {
+      const newQueue = prev.queue.map((item) => {
         if (item.id === nextItem.id) {
           return {
             ...item,
@@ -199,9 +273,13 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
           };
         }
         return item;
-      }),
-      currentCallingNumber: nextItem.queueNumber
-    }));
+      });
+      saveToStorage({ queue: newQueue, currentCallingNumber: nextItem.queueNumber });
+      return {
+        queue: newQueue,
+        currentCallingNumber: nextItem.queueNumber
+      };
+    });
 
     get().updateRepairOrder(nextItem.repairOrderId, { status: 'queuing' });
 
@@ -216,17 +294,19 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     const skippedItem = handleSkip(queueItem, state.config);
 
     set((prev) => {
-      const newQueue = prev.queue.map((item) =>
+      let newQueue = prev.queue.map((item) =>
         item.id === queueItemId ? skippedItem : item
       );
 
       if (skippedItem.status === 'cancelled') {
         get().updateRepairOrder(skippedItem.repairOrderId, { status: 'cancelled' });
         console.log('[Queue] 连续过号，自动作废:', skippedItem.queueNumber);
-        return { queue: newQueue };
+      } else {
+        newQueue = reorderSkippedItems(newQueue);
       }
 
-      return { queue: reorderSkippedItems(newQueue) };
+      saveToStorage({ queue: newQueue });
+      return { queue: newQueue };
     });
 
     get().updateRepairOrder(skippedItem.repairOrderId, {
@@ -242,11 +322,13 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     const queueItem = state.queue.find((q) => q.id === queueItemId);
     if (!queueItem) return;
 
-    set((prev) => ({
-      queue: prev.queue.map((item) =>
+    set((prev) => {
+      const newQueue = prev.queue.map((item) =>
         item.id === queueItemId ? { ...item, status: 'cancelled' } : item
-      )
-    }));
+      );
+      saveToStorage({ queue: newQueue });
+      return { queue: newQueue };
+    });
 
     get().updateRepairOrder(queueItem.repairOrderId, { status: 'cancelled' });
 
@@ -258,11 +340,13 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     const queueItem = state.queue.find((q) => q.id === queueItemId);
     if (!queueItem) return;
 
-    set((prev) => ({
-      queue: prev.queue.map((item) =>
+    set((prev) => {
+      const newQueue = prev.queue.map((item) =>
         item.id === queueItemId ? { ...item, status: 'completed' } : item
-      )
-    }));
+      );
+      saveToStorage({ queue: newQueue });
+      return { queue: newQueue };
+    });
 
     get().updateRepairOrder(queueItem.repairOrderId, {
       status: 'completed',
@@ -278,8 +362,8 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
       id: `part-${Date.now()}`
     };
 
-    set((prev) => ({
-      repairOrders: prev.repairOrders.map((o) => {
+    set((prev) => {
+      const newRepairOrders = prev.repairOrders.map((o) => {
         if (o.id === repairOrderId) {
           return {
             ...o,
@@ -287,19 +371,28 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
           };
         }
         return o;
-      })
-    }));
+      });
+      saveToStorage({ repairOrders: newRepairOrders });
+      return { repairOrders: newRepairOrders };
+    });
 
     console.log('[Parts] 添加配件:', repairOrderId, newPart.name);
   },
 
   setSelectedDate: (date) => {
-    set({ selectedDate: date });
+    set((prev) => {
+      saveToStorage({ selectedDate: date });
+      return { selectedDate: date };
+    });
     console.log('[Schedule] 切换日期:', date);
   },
 
   updateConfig: (config) => {
-    set((prev) => ({ config: { ...prev.config, ...config } }));
+    set((prev) => {
+      const newConfig = { ...prev.config, ...config };
+      saveToStorage({ config: newConfig });
+      return { config: newConfig };
+    });
     console.log('[Config] 更新配置:', config);
   },
 
@@ -316,19 +409,28 @@ const useAppStore = create<AppState & AppActions>((set, get) => ({
     }
 
     const allSlots = generateTimeSlots(state.config, date);
-    const stationOrders = findMergedOrderSlots(state.repairOrders, stationId, date);
+    const stationOrders = state.repairOrders.filter(
+      (o) => o.stationId === stationId
+        && o.status !== 'cancelled'
+        && o.scheduleDate === date
+    );
+
+    const mergedOrders = findMergedOrderSlots(state.repairOrders, stationId, date);
 
     const scheduleSlots = allSlots.map((slot) => {
-      const occupiedOrder = stationOrders.find((order) => {
-        const displaySlot = order.mergedSlot || order.timeSlots[0];
-        return displaySlot && displaySlot.startTime <= slot.startTime && displaySlot.endTime >= slot.endTime;
-      });
+      const occupiedOrder = stationOrders.find((order) =>
+        isSlotOccupiedByOrder(slot, order, date)
+      );
+
+      const mergedOrder = mergedOrders.find((order) =>
+        order.mergedSlot && isSlotOccupiedByOrder(slot, order, date)
+      );
 
       return {
         slot,
-        repairOrder: occupiedOrder,
-        isAvailable: !occupiedOrder && station.status === 'available',
-        isMerged: !!(occupiedOrder && occupiedOrder.mergedSlot)
+        repairOrder: occupiedOrder || mergedOrder,
+        isAvailable: !occupiedOrder && !mergedOrder && station.status === 'available',
+        isMerged: !!(mergedOrder && mergedOrder.mergedSlot)
       };
     });
 

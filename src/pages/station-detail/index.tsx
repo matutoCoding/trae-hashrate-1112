@@ -38,8 +38,7 @@ const StationDetailPage: React.FC = () => {
     return repairOrders.filter((o) => {
       if (o.stationId !== stationId) return false;
       if (o.status === 'cancelled') return false;
-      const orderDate = dayjs(o.createdAt).format('YYYY-MM-DD');
-      return orderDate === currentDate;
+      return o.scheduleDate === currentDate;
     }).sort((a, b) => {
       const aTime = a.timeSlots[0]?.startTime || '00:00';
       const bTime = b.timeSlots[0]?.startTime || '00:00';

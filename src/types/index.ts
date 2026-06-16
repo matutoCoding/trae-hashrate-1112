@@ -48,6 +48,7 @@ export interface RepairOrder {
   status: RepairStatus;
   serviceType: string;
   description: string;
+  scheduleDate: string;
   timeSlots: TimeSlot[];
   mergedSlot?: TimeSlot;
   estimatedDuration: number;
@@ -114,9 +115,9 @@ export interface AppActions {
   addStation: (station: Omit<Station, 'id' | 'createdAt'>) => void;
   updateStation: (id: string, updates: Partial<Station>) => void;
   deleteStation: (id: string) => void;
-  createRepairOrder: (order: Omit<RepairOrder, 'id' | 'orderNumber' | 'skipCount' | 'isSkipped' | 'createdAt'>) => void;
+  createRepairOrder: (order: Omit<RepairOrder, 'id' | 'orderNumber' | 'skipCount' | 'isSkipped' | 'createdAt' | 'scheduleDate'> & { scheduleDate?: string }) => void;
   updateRepairOrder: (id: string, updates: Partial<RepairOrder>) => void;
-  splitTimeSlot: (orderId: string, splitTime: string) => void;
+  splitTimeSlot: (orderId: string, splitTime: string) => boolean;
   mergeTimeSlots: (orderIds: string[]) => void;
   addQueueItem: (repairOrderId: string) => void;
   callNextNumber: () => void;
